@@ -57,14 +57,17 @@ local mostacho = function ()
   Escapes html txt
   ]]--
   local escape_html_fn = function(txt)
-    return txt:gsub('[&"<>\]', function(c) 
-        if c == '&' then return '&amp;'
-        elseif c == '"' then return '\"'
-        elseif c == '\\' then return '\\\\'
-        elseif c == '<' then return '&lt;'
-        elseif c == '>' then return '&gt;'
-        else return c end
-    end)
+    return txt:gsub('[^a-zA-Z0-9 _]',
+             function (c)
+               if     c == "'" then return '&#39;'
+               elseif c == '"' then return '&quot;'
+               elseif c == '&' then return '&amp;'
+               elseif c == '<' then return '&lt;'
+               elseif c == '>' then return '&gt;'
+               elseif c == ' ' then return '&nbsp;'
+               else                 return c
+               end
+             end)
   end
 
   --[[
@@ -89,7 +92,6 @@ local mostacho = function ()
   local lookup_environment = function (environments, key)
     local nenvs, env, value
     nenvs = #environments
-    print('Seeking for "' .. key .. '" in env list with ' .. nenvs .. ' envs')
     for nenvs = #environments, 1, -1 do
       env = environments[nenvs]
       value = env[key]
@@ -120,6 +122,8 @@ local mostacho = function ()
   local TAG_NOT     = 94  -- ^
   local TAG_COMMENT = 33  -- !
   local TAG_PARTIAL = 62  -- >
+  local TAG_DOT     = 46  -- .
+  local TAG_EQUALS  = 61  -- =
   local render_fn, render_section_fn, render_not_section_fn
 
   --[[ 
@@ -140,13 +144,11 @@ local mostacho = function ()
       -- empty
     elseif type(section_value) == 'table' then
       local k,v,result, index, err
-      print('Rendering section ' .. section_name)
       for k,v in ipairs(section_value) do
         push_environment(env_list, v)
         result, index, err = render_fn(env_list, section_text, 1, '')
         pop_environment(env_list)
         if result == nil then 
-          print('Returned nil with err ' .. tostring(err))
           return nil, index, err
         end
         acc = acc ..result 
@@ -154,7 +156,9 @@ local mostacho = function ()
     elseif type(section_value) == 'function' then
       acc = acc .. to_string(section_value(section_text))
     else
-      push_environment(env_list, section_value)
+      local new_env = {}
+      new_env[section_name] = section_value
+      push_environment(env_list, new_env)
       acc = acc .. render_fn(env_list, section_text, 1, '')
       pop_environment(env_list)
     end
@@ -204,6 +208,24 @@ local mostacho = function ()
       tag_txt = tag_txt:sub(2)
       tag_txt = tag_txt:gsub("^%s*(.-)%s*$", "%1")
       return render_section_fn(tag_txt, env_list, template, ie, acc)
+    -- {{=
+    elseif tag_type == TAG_EQUALS  then
+      if tag_txt:byte(-1) ~= TAG_EQUALS then
+        return nil, ie-1, 'Missing "=" to close new tag specification'
+      end
+      tag_txt = tag_txt:sub(2,-2)
+      tag_txt = tag_txt:gsub("^%s*(.-)%s*$", "%1")
+      local new_start_txt, nmatches= tag_txt:gsub("^(%S+)%s+(%S+)$", "%1")
+      if nmatches ~= 1 then
+        return nil, is, 'Invalid tag specification'
+      end
+      local new_end_txt, nmatches = tag_txt:gsub("^(%S+)%s+(%S+)$", "%2")
+      if nmatches ~= 1 then
+        return nil, is, 'Invalid tag specification'
+      end
+      tag_start_txt = new_start_txt
+      tag_end_txt = new_end_txt
+      return render_fn(env_list, template, ie, acc)
     -- {{^
     elseif tag_type == TAG_NOT     then
       tag_txt = tag_txt:sub(2)
@@ -212,9 +234,6 @@ local mostacho = function ()
     -- {{/
     elseif tag_type == TAG_SLASH   then
       return nil, is, 'Unexpected ' .. tag_start_txt .. tag_txt .. tag_end_txt
-    -- {{{
-    elseif tag_type == TAG_UNSCAPE then
-      return nil, is, '{{{ not implemented yet'
     -- {{!
     elseif tag_type == TAG_COMMENT then
       return render_fn(env_list, template, ie, acc)
@@ -234,11 +253,23 @@ local mostacho = function ()
       end
     -- {{& and {{variable
     else
-      if tag_type == TAG_AND then tag_txt = tag_txt:sub(2) end
+      local escape = true
+      if tag_type == TAG_UNSCAPE then 
+        ie = ie + 1
+        tag_txt = tag_txt:sub(2)
+        escape = false
+      end
+      if tag_type == TAG_AND then 
+        tag_txt = tag_txt:sub(2) 
+        escape = false
+      end
       tag_txt = tag_txt:gsub("^%s*(.-)%s*$", "%1")
       local variable_value = lookup_environment(env_list, tag_txt)
       if variable_value ~= nil then
-        if tag_type == TAG_AND then
+        if type(variable_value) == 'function' then
+          variable_value = variable_value()
+        end
+        if not escape then
           acc = acc .. tostring(variable_value)
         else
           acc = acc .. escape_html_fn(tostring(variable_value))

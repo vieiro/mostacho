@@ -41,9 +41,14 @@ Errors in templates (unclosed sections, missing end tags) are reported with line
 
 I'm working on it as a hobby project, no hurries.
 
-* '{{', '{{&', '{{#', '{{/' , '{{!' are implemented.
-* '{{{' and '{{=' are not implemented yet.
-* Missing (public) unit tests. Deciding on a non-dependent solution yet.
+All tags from mustache are implemented. This includes:
+
+* '{{'
+* '{{{'
+* '{{='
+* '{{!'
+* '{{#' '/}}'
+* '{{^' '/}}'
 
 ## License
 
