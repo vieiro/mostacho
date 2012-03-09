@@ -116,6 +116,19 @@ local mostacho = function ()
   end
 
   --[[
+  Dumps an environment
+  ]]--
+  local dump_environments = function(environments)
+    local i,t, k,v
+    for i,t in ipairs(environments) do
+      local s = string.rep('  ',i)
+      for k,v in pairs(t) do
+        print(s .. i .. ' ' .. k .. '=' .. tostring(v))
+      end
+    end
+  end
+
+  --[[
   Pops an environment from the environment list
   ]]--
   local pop_environment = function (environments)
@@ -132,7 +145,9 @@ local mostacho = function ()
     for nenvs = #environments, 1, -1 do
       env = environments[nenvs]
       value = env[key]
-      if value ~= nil then return value end
+      if value ~= nil then 
+        return value 
+      end
     end
     return nil
   end
@@ -201,22 +216,25 @@ local mostacho = function ()
       local k,v,result, index, err
       local array = is_array_fn(section_value)
 
+
       result = ''
       if not array then
         -- Push the table itself as the environment (non-false values)
         push_environment(env_list, section_value)
         result, index, err = render_fn(env_list, section_text, 1, '')
         pop_environment(env_list)
+        if result == nil then return nil, index, err end
+        acc = acc .. result 
       else
         -- Iterate over the array too
         for k,v in ipairs(section_value) do
           push_environment(env_list, v)
           result, index, err = render_fn(env_list, section_text, 1, '')
           pop_environment(env_list)
+          if result == nil then return nil, index, err end
+          acc = acc .. result 
         end
       end
-      if result == nil then return nil, index, err end
-      acc = acc .. result 
     elseif type(section_value) == 'function' then
       acc = acc .. to_string(section_value(section_text))
     else
