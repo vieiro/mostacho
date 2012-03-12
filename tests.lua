@@ -95,3 +95,26 @@ test('tests/nesting')
 test('tests/null_string')
 test('tests/partial_array_of_partials')
 test('tests/whitespace')
+
+--
+-- Given a 'name' this function tests if 'name'.mustache
+--   fails to compile
+--
+local fail = function (name)
+    local template, err = file_read_fn(name .. '.mustache')
+    if template == nil then
+      print('ERROR - ' .. name .. ' ' .. err)
+    else
+      local rendered, err = mostacho.render({}, template)
+      if rendered ~= nil then
+        print('ERROR - mostacho thinks that ' .. name .. '.mustache is a valid template when it is not')
+        print('mostacho result:\n[[')
+        print(rendered)
+        print(']]')
+      else
+        print('OK    - ' .. name)
+      end
+    end
+end
+
+fail('tests/overlapped_sections')
