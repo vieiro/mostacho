@@ -238,6 +238,7 @@ local mostacho = function ()
     elseif type(section_value) == 'function' then
       acc = acc .. to_string(section_value(section_text))
     else
+      acc = acc .. render_fn(env_list, section_text, 1, '')
       --[[
       local new_env = {}
       new_env[section_name] = section_value
@@ -282,6 +283,7 @@ local mostacho = function ()
     @return the rendered result, or nil + err in case of error.
   ]]--
   render_fn = function (env_list, template, idx, acc)
+    assert(template, 'La plantilla no puede ser nil')
     local is, ie, tag_txt = find_tag_fn(template, idx)
 
     if is == nil then
