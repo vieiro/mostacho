@@ -95,6 +95,7 @@ test('tests/nesting')
 test('tests/null_string')
 test('tests/partial_array_of_partials')
 test('tests/whitespace')
+test('tests/varios')
 
 --
 -- Given a 'name' this function tests if 'name'.mustache
