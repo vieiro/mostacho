@@ -22,11 +22,11 @@ local mostacho = function ()
   ]]--
   local find_tag_fn = function (txt, idx)
     local is, ie = txt:find(tag_start_txt, idx, true)
-    if is == nil then
+    if not is then
       return nil
     else
       local js, je = txt:find(tag_end_txt, ie + 1, true)
-      if js == nil then
+      if not js then 
         error('Unclosed tag at ' .. ie)
       else
         local tag_txt = txt:sub(ie + 1, js - 1)
@@ -43,11 +43,11 @@ local mostacho = function ()
     local negSectionStartText = tag_start_txt .. '^' .. tag_txt .. tag_end_txt
     local is, ie = txt:find(sectionStartText, idx, true)
     local is2, ie2 = txt:find(negSectionStartText, idx, true)
-    if is == nil and is2 == nil then
+    if not is and not is2 then
       return nil
     else
-      if is == nil   then return is2-1, ie2+1, txt:sub(idx, is2-1) end
-      if is2 == nil  then return is-1, ie+1, txt:sub(idx, is-1) end
+      if not is then return is2-1, ie2+1, txt:sub(idx, is2-1) end
+      if not is2 then return is-1, ie+1, txt:sub(idx, is-1) end
       if is < is2    then return is-1, ie+1, txt:sub(idx, is-1) end
       if is2 < is    then return is2-1, ie2+1, txt:sub(idx, is2-1) end
       error("All work and no sleep makes Antonio a dull boy")
@@ -64,24 +64,24 @@ local mostacho = function ()
   find_section_end_fn = function(txt, idx, tag_txt)
     local sectionEndText = tag_start_txt .. '/' .. tag_txt .. tag_end_txt
     local is, ie = txt:find(sectionEndText, idx, true)
-    if is == nil then
+    if not is then
       return nil
     else
       local sectionText = txt:sub(idx, is-1)
       -- Does the sectionText contain a start tag
       local js, je, dummy = find_section_start_fn(txt, idx, tag_txt)
-      if js == nil or js > is then
+      if not js or js > is then
         -- No, there's no start tag there...
         return is-1, ie+1, sectionText
       else
         -- Yes, there's a start tag. Seek its closest end tag...
         local ks, ke, dummy = find_section_end_fn(txt, je, tag_txt)
-        if ks == nil then
+        if not ks then
            return nil, js, 'Unclosed end tag'
         end
         sectionText = txt:sub(idx, ke-1)
         local ks, ke, dummy = find_section_end_fn(txt, ke, tag_txt)
-        if ks == nil then
+        if not ks then
            return nil, js, 'Unclosed end tag'
         end
         -- And return our section end from that index
@@ -206,7 +206,7 @@ local mostacho = function ()
   render_section_fn = function(section_name, env_list, template, idx, acc)
     local js, je, section_text = find_section_end_fn(template, idx, section_name)
 
-    if js == nil then
+    if not js then
       return nil, idx, 'Unclosed #section "' .. section_name .. '"'
     end
     local section_value = lookup_environment(env_list, section_name)
@@ -223,7 +223,7 @@ local mostacho = function ()
         push_environment(env_list, section_value)
         result, index, err = render_fn(env_list, section_text, 1, '')
         pop_environment(env_list)
-        if result == nil then return nil, index, err end
+        if not result then return nil, index, err end
         acc = acc .. result 
       else
         -- Iterate over the array too
@@ -231,7 +231,7 @@ local mostacho = function ()
           push_environment(env_list, v)
           result, index, err = render_fn(env_list, section_text, 1, '')
           pop_environment(env_list)
-          if result == nil then return nil, index, err end
+          if not result then return nil, index, err end
           acc = acc .. result 
         end
       end
@@ -260,13 +260,13 @@ local mostacho = function ()
   ]]--
   render_not_section_fn = function(section_name, env_list, template, idx, acc)
     local js, je, section_text = find_section_end_fn(template, idx, section_name)
-    if js == nil then
+    if not js then
       return nil, idx, 'Unclosed ^section "' .. section_name .. '"'
     end
     local section_value = lookup_environment(env_list, section_name)
     if not section_value or  (type(section_value) == 'table' and #section_value == 0) then
       local result, idx, err = render_fn(env_list, section_text, 1, '')
-      if result == nil then
+      if not result then
         return nil, idx, err
       end
       acc = acc .. result
@@ -286,7 +286,7 @@ local mostacho = function ()
     assert(template, 'La plantilla no puede ser nil')
     local is, ie, tag_txt = find_tag_fn(template, idx)
 
-    if is == nil then
+    if not is then
       return acc .. template:sub(idx)
     else
       acc = acc .. template:sub(idx, is)
@@ -333,11 +333,12 @@ local mostacho = function ()
       tag_txt = tag_txt:gsub("^%s*(.-)%s*$", "%1")
       local io = io
       local file, err = io.open(tag_txt .. '.mustache', 'r')
-      if file == nil then
+      if not file then
         return nil, is, err
       else
-        local file_txt = file:read("*all")
+        local file_txt, err = file:read("*all")
         file:close()
+        if not file_txt then return nil, err end
         acc = acc .. render_fn(env_list, file_txt, 1, '')
         return render_fn(env_list, template, ie, acc)
       end
@@ -374,7 +375,7 @@ local mostacho = function ()
       local env_list = {}
       table.insert(env_list, model)
       local result, index, err = render_fn(env_list, template, 1, '')
-      if result == nil then
+      if not result then
         local line_number = line_count_fn(template, index)
         return nil, 'ERROR:' .. line_number .. ':' .. index .. ':' .. err
       else
