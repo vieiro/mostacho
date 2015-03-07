@@ -136,17 +136,38 @@ local mostacho = function ()
     return environments
   end
 
+  local seek_dotted_key_in_table = function (t, key)
+    local prefix,suffix = key:match('^([^%.]*)%.*(.*)')
+    local value = t[prefix]
+    if suffix == '' then 
+      return value
+    else
+      if type(value) == 'table' then
+        return seek_dotted_key_in_table(value, suffix)
+      else
+        return nil
+      end
+    end
+  end
+
   --[[
   Seeks for a key in the environment list, returns nil if not found
   ]]--
   local lookup_environment = function (environments, key)
     local nenvs, env, value
+    local prefix,suffix = key:match('^([^%.]*)%.*(.*)')
     nenvs = #environments
     for nenvs = #environments, 1, -1 do
       env = environments[nenvs]
-      value = env[key]
+      value = env[prefix]
       if value ~= nil then 
-        return value 
+        if suffix == '' then 
+          return value 
+        else
+          if type(value) == 'table' then
+            return seek_dotted_key_in_table(value, suffix)
+          end
+        end
       end
     end
     return nil
