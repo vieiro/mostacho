@@ -39,8 +39,8 @@ local mostacho = function ()
   Searchs for {{#'txt'}} or for {{^'txt'}} returns the one closest for index
   ]]--
   local find_section_start_fn = function(txt, idx, tag_txt)
-    local sectionStartText = tag_start_txt .. '#' .. tag_txt .. tag_end_txt
-    local negSectionStartText = tag_start_txt .. '^' .. tag_txt .. tag_end_txt
+    local sectionStartText = table.concat({tag_start_txt, '#', tag_txt, tag_end_txt})
+    local negSectionStartText = table.concat({tag_start_txt, '^', tag_txt, tag_end_txt})
     local is, ie = txt:find(sectionStartText, idx, true)
     local is2, ie2 = txt:find(negSectionStartText, idx, true)
     if not is and not is2 then
@@ -62,7 +62,7 @@ local mostacho = function ()
   ]]--
   local find_section_end_fn 
   find_section_end_fn = function(txt, idx, tag_txt)
-    local sectionEndText = tag_start_txt .. '/' .. tag_txt .. tag_end_txt
+    local sectionEndText = table.concat({tag_start_txt, '/', tag_txt, tag_end_txt})
     local is, ie = txt:find(sectionEndText, idx, true)
     if not is then
       return nil
@@ -123,7 +123,7 @@ local mostacho = function ()
     for i,t in ipairs(environments) do
       local s = string.rep('  ',i)
       for k,v in pairs(t) do
-        print(s .. i .. ' ' .. k .. '=' .. tostring(v))
+        print(table.concat({s, i, ' ', k, '=', tostring(v)}))
       end
     end
   end
@@ -228,7 +228,7 @@ local mostacho = function ()
     local js, je, section_text = find_section_end_fn(template, idx, section_name)
 
     if not js then
-      return nil, idx, 'Unclosed #section "' .. section_name .. '"'
+      return nil, idx, table.concat({'Unclosed #section "', section_name, '"'})
     end
     local section_value = lookup_environment(env_list, section_name)
     if not section_value then
@@ -242,24 +242,24 @@ local mostacho = function ()
       if not array then
         -- Push the table itself as the environment (non-false values)
         push_environment(env_list, section_value)
-        result, index, err = render_fn(env_list, section_text, 1, '')
+        result, index, err = render_fn(env_list, section_text, 1, {})
         pop_environment(env_list)
         if not result then return nil, index, err end
-        acc = acc .. result 
+        table.insert(acc, result)
       else
         -- Iterate over the array too
         for k,v in ipairs(section_value) do
           push_environment(env_list, v)
-          result, index, err = render_fn(env_list, section_text, 1, '')
+          result, index, err = render_fn(env_list, section_text, 1, {})
           pop_environment(env_list)
           if not result then return nil, index, err end
-          acc = acc .. result 
+          table.insert(acc, result)
         end
       end
     elseif type(section_value) == 'function' then
-      acc = acc .. to_string(section_value(section_text))
+      table.insert(acc, to_string(section_value(section_text)))
     else
-      acc = acc .. render_fn(env_list, section_text, 1, '')
+      table.insert(acc, render_fn(env_list, section_text, 1, {}))
       --[[
       local new_env = {}
       new_env[section_name] = section_value
@@ -282,15 +282,15 @@ local mostacho = function ()
   render_not_section_fn = function(section_name, env_list, template, idx, acc)
     local js, je, section_text = find_section_end_fn(template, idx, section_name)
     if not js then
-      return nil, idx, 'Unclosed ^section "' .. section_name .. '"'
+      return nil, idx, table.concat({'Unclosed ^section "', section_name, '"'})
     end
     local section_value = lookup_environment(env_list, section_name)
     if not section_value or  (type(section_value) == 'table' and #section_value == 0) then
-      local result, idx, err = render_fn(env_list, section_text, 1, '')
+      local result, idx, err = render_fn(env_list, section_text, 1, {})
       if not result then
         return nil, idx, err
       end
-      acc = acc .. result
+      table.insert(acc, result)
     end
     return render_fn(env_list, template, je, acc)
   end
@@ -308,9 +308,10 @@ local mostacho = function ()
     local is, ie, tag_txt = find_tag_fn(template, idx)
 
     if not is then
-      return acc .. template:sub(idx)
+      table.insert(acc, template:sub(idx))
+      return table.concat(acc)
     else
-      acc = acc .. template:sub(idx, is)
+      table.insert(acc, template:sub(idx, is))
     end
 
     local tag_type = tag_txt:byte(1)
@@ -344,7 +345,7 @@ local mostacho = function ()
       return render_not_section_fn(tag_txt, env_list, template, ie, acc)
     -- {{/
     elseif tag_type == TAG_SLASH   then
-      return nil, is, 'Unexpected ' .. tag_start_txt .. tag_txt .. tag_end_txt
+      return nil, is, table.concat({'Unexpected ', tag_start_txt, tag_txt, tag_end_txt})
     -- {{!
     elseif tag_type == TAG_COMMENT then
       return render_fn(env_list, template, ie, acc)
@@ -360,7 +361,7 @@ local mostacho = function ()
         local file_txt, err = file:read("*all")
         file:close()
         if not file_txt then return nil, err end
-        acc = acc .. render_fn(env_list, file_txt, 1, '')
+        table.insert(acc, render_fn(env_list, file_txt, 1, {}))
         return render_fn(env_list, template, ie, acc)
       end
     -- {{& and {{variable
@@ -382,9 +383,10 @@ local mostacho = function ()
           variable_value = variable_value()
         end
         if not escape then
-          acc = acc .. tostring(variable_value)
+          table.insert(acc, tostring(variable_value))
         else
-          acc = acc .. escape_html_fn(tostring(variable_value))
+          local txt = escape_html_fn(tostring(variable_value))
+          table.insert(acc, txt)
         end
       end
       return render_fn(env_list, template, ie, acc)
@@ -395,10 +397,10 @@ local mostacho = function ()
     render = function (model, template)
       local env_list = {}
       table.insert(env_list, model)
-      local result, index, err = render_fn(env_list, template, 1, '')
+      local result, index, err = render_fn(env_list, template, 1, {})
       if not result then
         local line_number = line_count_fn(template, index)
-        return nil, 'ERROR:' .. line_number .. ':' .. index .. ':' .. err
+        return nil, table.concat({'ERROR:', line_number, ':', index, ':', err})
       else
         assert(#env_list == 1, 'Environments not cleaned up correctly')
         return result
