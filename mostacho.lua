@@ -10,7 +10,7 @@ local mostacho = function ()
 
   --[[
 
-  Searchs 'txt' from index 'idx' seeking for a tag starting with 'tag_start_txt'
+  Searches 'txt' from index 'idx' seeking for a tag starting with 'tag_start_txt'
   and ending with 'tag_end_txt'.
 
   Returns 
@@ -36,7 +36,7 @@ local mostacho = function ()
   end
 
   --[[
-  Searchs for {{#'txt'}} or for {{^'txt'}} returns the one closest for index
+  Searches for {{#'txt'}} or for {{^'txt'}} returns the one closest for index
   ]]--
   local find_section_start_fn = function(txt, idx, tag_txt)
     local sectionStartText = table.concat({tag_start_txt, '#', tag_txt, tag_end_txt})
@@ -55,7 +55,7 @@ local mostacho = function ()
   end
 
   --[[
-  Searchs for {{/'txt'}}, takes care of nesting
+  Searches for {{/'txt'}}, takes care of nesting
 
   @return nil if there's no section, or start_index, end_index + txt
     on success
